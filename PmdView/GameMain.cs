@@ -132,11 +132,12 @@ namespace PmdView {
 						for(var p = 0; p < pf.files.Count; p++) {
 							bool isSelected = pfSelectedItem == p;
 							ImGui.PushID(p);
-							if (pf.files[p].filename == "stage01.pmd" || pf.files[p].filename == "stage2.pmd") {
+							
+							if (pf.files[p].filename.Contains("stage") ) {
 								Console.Write("pmd file was found! \n");
 								pfSelectedItem = p;
 							}else{
-								Console.Write("pmd file was found! \n");
+								Console.Write("ERROR pmd file was NOT found! \n" + i);
 							}
 							ImGui.PopID();
 							if(isSelected) {
@@ -145,16 +146,88 @@ namespace PmdView {
 						}
 
 						try {
+						
 							mdlFrame = 0;
 							mainMdl?.Dispose();
-							Pmd pmd = Pmd.FromBytes(in pf.files[pfSelectedItem].data);
+							if( pf != null && pfSelectedItem < pf.files.Count){
+								Console.Write("pfselecteditem value \n" + pfSelectedItem);
+								Console.Write("pf.files.count value \n" + pf.files.Count);
+								Pmd pmd = Pmd.FromBytes(in pf.files[pfSelectedItem].data);
 							mainMdl = new(in pmd, GraphicsDevice);
+							}
+						
 						} catch(Exception e) {
 							lastException = e;
 							showErrorModal = true;
 						}
 					
+		}else{
+			Console.Write("pf is null! \n" + i);
 		}
+		String levelName = "ERROR";
+
+		if( stagePath == "STAGE1"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE2"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE3"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE4"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE5"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE6"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE7"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE8"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE9"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE10"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE11"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE12"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE13"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE14"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE15"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE16"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE17"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE18"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE19"){
+			levelName = "Welcome to Block World!";
+		}
+				if( stagePath == "STAGE20"){
+			levelName = "Welcome to Block World!";
+		}
+			
+		//todo use level names here
 		plyExportFolder = plyDumpFolder + "\\" + stagePath;
 		
 		if (!Directory.Exists(plyExportFolder))  {  
