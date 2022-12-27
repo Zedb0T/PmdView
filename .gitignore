@@ -403,3 +403,7 @@ FodyWeavers.xsd
 
 
 testresult/
+PmdView/ISO_DATA/*
+PmdView\ISO_DATA\*
+PmdView/Extracted_PLY_Models/*
+PmdView/ISO_DATA/COMMON/COMMON.TPF
