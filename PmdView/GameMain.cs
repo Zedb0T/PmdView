@@ -26,6 +26,10 @@ namespace PmdView {
 		string pmdPath = string.Empty;
 		string tpfPath = string.Empty;
 		string pfPath = string.Empty;
+		 
+		string isoPath = Path.Combine(Environment.CurrentDirectory.Remove(Environment.CurrentDirectory.Length - 17), "ISO_DATA");
+		string plyDumpFolder = Path.Combine(Environment.CurrentDirectory.Remove(Environment.CurrentDirectory.Length - 17), "Extracted_PLY_Models");
+		XnaPmd mdl;
 		string pfDumpFolder = string.Empty;
 		bool pfDumpPrefixIndex = true;
 
@@ -89,7 +93,92 @@ namespace PmdView {
 		bool showErrorModal = false;
 		Exception lastException;
 		int pfSelectedItem = -1;
+        
 
+        public void ExtractisotofolderPLY(string pfPath) {
+			isoPath = pfPath;
+			for(var i = 1; i <= 20; i++) {
+			string stagePath = "STAGE"+i;
+				
+			if (Directory.Exists(isoPath + "\\" + stagePath))  {  
+				Console.Write(isoPath + "\\" +stagePath +" exists! \n");
+			tpfPath = isoPath.Trim('"');
+			tpfPath = isoPath + "\\" + stagePath+ "\\STAGE.TPF";
+			
+			timBundle?.Dispose();
+			timBundle = null;
+			try {
+				timBundle = TimBundle.FromTpf(tpfPath, GraphicsDevice);
+				tpfPath = string.Empty;
+			} catch(Exception e) {
+				lastException = e;
+				showErrorModal = true;
+			}
+		
+		
+		pfPath = isoPath + "\\" + stagePath+"\\STAGE1.PPF";
+		pfPath = pfPath.Trim('"');
+					pf?.Dispose();
+					pfSelectedItem = -1;
+					try {
+						pf = PackFile.FromFile(pfPath);
+					} catch (Exception e) {
+						pf = null;
+						lastException = e;
+						showErrorModal = true;
+					}
+				if (pf is not null) {
+				Console.Write("pf is not null!");
+						for(var p = 0; p < pf.files.Count; p++) {
+							bool isSelected = pfSelectedItem == p;
+							ImGui.PushID(p);
+							if (pf.files[p].filename == "stage01.pmd" || pf.files[p].filename == "stage2.pmd") {
+								Console.Write("pmd file was found! \n");
+								pfSelectedItem = p;
+							}else{
+								Console.Write("pmd file was found! \n");
+							}
+							ImGui.PopID();
+							if(isSelected) {
+								ImGui.SetItemDefaultFocus();
+							}
+						}
+
+						try {
+							mdlFrame = 0;
+							mainMdl?.Dispose();
+							Pmd pmd = Pmd.FromBytes(in pf.files[pfSelectedItem].data);
+							mainMdl = new(in pmd, GraphicsDevice);
+						} catch(Exception e) {
+							lastException = e;
+							showErrorModal = true;
+						}
+					
+		}
+		plyExportFolder = plyDumpFolder + "\\" + stagePath;
+		
+		if (!Directory.Exists(plyExportFolder))  {  
+
+			System.IO.Directory.CreateDirectory(plyExportFolder);
+		}
+				try {
+					for(var x = 0; x < mainMdl?.pmd.frameVertices.GetLength(0); x++) {
+						string path = $"{plyExportFolder}{Path.DirectorySeparatorChar}Frame_{i}.ply";
+						Pmd2Ply.WritePly(in mainMdl.pmd, path, in timBundle, x);
+					}
+					using (FileStream stream = new($"{plyExportFolder}{Path.DirectorySeparatorChar}Texture"+i+".png", FileMode.Create))
+						timBundle.texture.SaveAsPng(stream, timBundle.texture.Width, timBundle.texture.Height);
+				} catch(Exception e) {
+					lastException = e;
+					showErrorModal = true;
+				}
+
+		}else{
+			Console.Write("ERROR: " + pfPath + "\\" +stagePath +" does not exist! \n");
+		}
+		}
+		}
+		
 		protected override void Draw(GameTime gameTime) {
 			GraphicsDevice.Clear(Color.Black);
 
@@ -215,6 +304,13 @@ namespace PmdView {
 				LoadMainPmd(pmdPath);
 			}
 
+			ImGui.InputText("PATH TO ISO_DATA", ref isoPath, 512);
+			ImGui.SameLine();
+			if (ImGui.Button("Extract all to PLY")) {
+
+				ExtractisotofolderPLY(isoPath);
+			}
+
 			//////////////////////////////////////////////////
 
 			if (ImGui.CollapsingHeader("Object Visibility")) {
@@ -331,4 +427,5 @@ namespace PmdView {
 			base.LoadContent();
 		}
 	}
+	
 }
