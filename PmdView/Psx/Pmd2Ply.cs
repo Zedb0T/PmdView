@@ -25,7 +25,11 @@ namespace PmdView.Psx {
 					foreach (var packet in pg.packets) {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 						var prim = packet.prim[0];
-						var rect = bundle.rects[prim.tpage]; //0 when no tex,
+
+                        // Print the tpage value before accessing the rect
+                        Console.WriteLine($"FILENAME BEFORE CRASH: {fname}");
+
+                        var rect = bundle.rects[prim.tpage]; //0 when no tex,
 
 						int[] face = new int[pg.type.HasFlag(PrimGpType.IsQuad) ? 4 : 3];
 						Vector3[] colour = new Vector3[face.Length];

@@ -107,120 +107,236 @@ namespace PmdView
 		int pfSelectedItem = -1;
 
 
-public void ExtractisotofolderPLY(string pfPath)
+		public void ExtractIsoToFolderPLY(string pfPath)
+		{
+
+
+			isoPath = pfPath;
+HashSet<string> skipFiles = new HashSet<string> { "psxcon.pmd", "psxcona.pmd" };
+
+// Your existing code to process the common folder
+isoPath = pfPath;
+
+string commonPath = "COMMON";
+if (Directory.Exists(isoPath + "\\" + commonPath))
 {
-    isoPath = pfPath;
-    for (var i = 1; i <= 20; i++)
+    Console.Write(isoPath + "\\" + commonPath + " exists! \n");
+
+    // Get all .PPF files in the current stage directory
+    string[] ppfFiles = Directory.GetFiles(isoPath + "\\" + commonPath, "*.PPF");
+
+    foreach (string ppfFile in ppfFiles)
     {
-        string stagePath = "STAGE" + i;
+        // Determine the corresponding TPF file for this PPF
+        string tpfFileName = Path.GetFileNameWithoutExtension(ppfFile) + ".TPF";
+        string tpfPath = isoPath + "\\" + commonPath + "\\" + tpfFileName;
 
-        if (Directory.Exists(isoPath + "\\" + stagePath))
+        // Load the TPF file
+        timBundle?.Dispose();
+        timBundle = null;
+        try
         {
-            Console.Write(isoPath + "\\" + stagePath + " exists! \n");
-            tpfPath = isoPath.Trim('"');
-            tpfPath = isoPath + "\\" + stagePath + "\\STAGE.TPF";
-
-            timBundle?.Dispose();
-            timBundle = null;
-            try
+            if (File.Exists(tpfPath)) // Check if the TPF file exists
             {
                 timBundle = TimBundle.FromTpf(tpfPath, GraphicsDevice);
-                tpfPath = string.Empty;
             }
-            catch (Exception e)
+            else
             {
-                lastException = e;
-                showErrorModal = true;
-            }
-
-            pfPath = isoPath + "\\" + stagePath + "\\STAGE1.PPF";
-            pfPath = pfPath.Trim('"');
-            pf?.Dispose();
-            pfSelectedItem = -1;
-            try
-            {
-                pf = PackFile.FromFile(pfPath);
-            }
-            catch (Exception e)
-            {
-                pf = null;
-                lastException = e;
-                showErrorModal = true;
-            }
-
-            if (pf is not null)
-            {
-                Console.Write("pf is not null!");
-                for (var p = 0; p < pf.files.Count; p++)
-                {
-                    bool isSelected = pfSelectedItem == p;
-                    ImGui.PushID(p);
-
-                    // Dynamically check for stageXX.pmd
-                    for (var stageIndex = 1; stageIndex <= 20; stageIndex++)
-                    {
-                        string expectedFile = $"stage{stageIndex:00}.pmd";
-                        if (pf.files[p].filename.Equals(expectedFile, StringComparison.OrdinalIgnoreCase))
-                        {
-                            Console.Write($"{expectedFile} file was found! \n");
-                            pfSelectedItem = p;
-                            break;
-                        }
-                    }
-
-                    ImGui.PopID();
-                    if (isSelected)
-                    {
-                        ImGui.SetItemDefaultFocus();
-                    }
-                }
-
-                try
-                {
-                    mdlFrame = 0;
-                    mainMdl?.Dispose();
-                    Pmd pmd = Pmd.FromBytes(in pf.files[pfSelectedItem].data);
-                    mainMdl = new(in pmd, GraphicsDevice);
-                }
-                catch (Exception e)
-                {
-                    lastException = e;
-                    showErrorModal = true;
-                }
-            }
-
-            plyExportFolder = plyDumpFolder + "\\" + stagePath;
-
-            if (!Directory.Exists(plyExportFolder))
-            {
-                System.IO.Directory.CreateDirectory(plyExportFolder);
-            }
-
-            try
-            {
-                for (var x = 0; x < mainMdl?.pmd.frameVertices.GetLength(0); x++)
-                {
-                    string path = $"{plyExportFolder}{Path.DirectorySeparatorChar}Frame_{x}.ply";
-                    Pmd2Ply.WritePly(in mainMdl.pmd, path, in timBundle, x);
-                }
-
-                using (FileStream stream = new($"{plyExportFolder}{Path.DirectorySeparatorChar}Texture{i}.png", FileMode.Create))
-                {
-                    timBundle.texture.SaveAsPng(stream, timBundle.texture.Width, timBundle.texture.Height);
-                }
-            }
-            catch (Exception e)
-            {
-                lastException = e;
-                showErrorModal = true;
+                Console.WriteLine($"Warning: TPF file {tpfPath} not found. Skipping PPF {ppfFile}");
+                continue; // Skip this PPF if TPF is missing
             }
         }
-        else
+        catch (Exception e)
         {
-            Console.Write("ERROR: " + pfPath + "\\" + stagePath + " does not exist! \n");
+            lastException = e;
+            showErrorModal = true;
+            continue; // Skip if there's an error loading the TPF file
+        }
+
+        // Process the PPF file
+        pfPath = ppfFile.Trim('"');
+        pf?.Dispose();
+        pfSelectedItem = -1;
+        try
+        {
+            pf = PackFile.FromFile(pfPath);
+        }
+        catch (Exception e)
+        {
+            pf = null;
+            lastException = e;
+            showErrorModal = true;
+            continue; // Skip if the PPF file cannot be loaded
+        }
+
+        if (pf is not null)
+        {
+            Console.Write("pf is not null!");
+            for (var p = 0; p < pf.files.Count; p++)
+            {
+                string filename = pf.files[p].filename;
+
+                // Check if the file is in the skip list
+                if (skipFiles.Contains(filename))
+                {
+                    Console.WriteLine($"Skipping file: {filename}");
+                    continue; // Skip processing this file
+                }
+                // Check for .pmd files inside the .ppf
+                if (filename.EndsWith(".pmd", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.Write($"{filename} found in PPF! \n");
+                    pfSelectedItem = p; // Set this to the index of the .pmd file
+
+                    try
+                    {
+                        // Load and process the PMD file
+                        mdlFrame = 0;
+                        mainMdl?.Dispose();
+                        Pmd pmd = Pmd.FromBytes(in pf.files[pfSelectedItem].data);
+                        mainMdl = new(in pmd, GraphicsDevice);
+
+                        // Create a subfolder named after the .pmd file (without the extension)
+                        string pmdFileNameWithoutExtension = Path.GetFileNameWithoutExtension(filename);
+                        string pmdExportFolder = Path.Combine(plyDumpFolder, commonPath, pmdFileNameWithoutExtension);
+
+                        if (!Directory.Exists(pmdExportFolder))
+                        {
+                            Directory.CreateDirectory(pmdExportFolder);  // Create folder if it doesn't exist
+                        }
+
+                        // Export all frames to PLY files
+                        for (var x = 0; x < mainMdl?.pmd.frameVertices.GetLength(0); x++)
+                        {
+                            string path = Path.Combine(pmdExportFolder, $"Frame_{x}.ply");
+                            Pmd2Ply.WritePly(in mainMdl.pmd, path, in timBundle, x);
+                        }
+
+                        // Save texture as PNG maybe bad
+                        using (FileStream stream = new(Path.Combine(pmdExportFolder, $"Texture_1.png"), FileMode.Create))
+                        {
+                            timBundle.texture.SaveAsPng(stream, timBundle.texture.Width, timBundle.texture.Height);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        lastException = e;
+                        showErrorModal = true;
+                    }
+                }
+            }
         }
     }
 }
+
+			for (var i = 1; i <= 20; i++)
+			{
+				string stagePath = "STAGE" + i;
+
+				if (Directory.Exists(isoPath + "\\" + stagePath))
+				{
+					Console.Write(isoPath + "\\" + stagePath + " exists! \n");
+					tpfPath = isoPath.Trim('"');
+					tpfPath = isoPath + "\\" + stagePath + "\\STAGE.TPF";
+
+					timBundle?.Dispose();
+					timBundle = null;
+					try
+					{
+						timBundle = TimBundle.FromTpf(tpfPath, GraphicsDevice);
+						tpfPath = string.Empty;
+					}
+					catch (Exception e)
+					{
+						lastException = e;
+						showErrorModal = true;
+					}
+
+					// Get all .PPF files in the current stage directory
+					string[] ppfFiles = Directory.GetFiles(isoPath + "\\" + stagePath, "*.PPF");
+
+					foreach (string ppfFile in ppfFiles)
+					{
+						pfPath = ppfFile.Trim('"');
+						pf?.Dispose();
+						pfSelectedItem = -1;
+						try
+						{
+							pf = PackFile.FromFile(pfPath);
+						}
+						catch (Exception e)
+						{
+							pf = null;
+							lastException = e;
+							showErrorModal = true;
+						}
+
+						if (pf is not null)
+						{
+							Console.Write("pf is not null!");
+							for (var p = 0; p < pf.files.Count; p++)
+							{
+								string filename = pf.files[p].filename;
+
+								// Check for .pmd files inside the .ppf
+								if (filename.EndsWith(".pmd", StringComparison.OrdinalIgnoreCase))
+								{
+									Console.Write($"{filename} found in PPF! \n");
+									pfSelectedItem = p; // Set this to the index of the .pmd file
+
+									try
+									{
+										// Load and process the PMD file
+										mdlFrame = 0;
+										mainMdl?.Dispose();
+										Pmd pmd = Pmd.FromBytes(in pf.files[pfSelectedItem].data);
+										mainMdl = new(in pmd, GraphicsDevice);
+
+										// Create a subfolder named after the .pmd file (without the extension)
+										string pmdFileNameWithoutExtension = Path.GetFileNameWithoutExtension(filename);
+										string pmdExportFolder = Path.Combine(plyDumpFolder, stagePath, pmdFileNameWithoutExtension);
+
+										if (!Directory.Exists(pmdExportFolder))
+										{
+											Directory.CreateDirectory(pmdExportFolder);  // Create folder if it doesn't exist
+										}
+
+										// Export all frames to PLY files
+										for (var x = 0; x < mainMdl?.pmd.frameVertices.GetLength(0); x++)
+										{
+											string path = Path.Combine(pmdExportFolder, $"Frame_{x}.ply");
+											Pmd2Ply.WritePly(in mainMdl.pmd, path, in timBundle, x);
+										}
+
+										// Save texture as PNG
+										using (FileStream stream = new(Path.Combine(pmdExportFolder, $"Texture_{i}.png"), FileMode.Create))
+										{
+											timBundle.texture.SaveAsPng(stream, timBundle.texture.Width, timBundle.texture.Height);
+										}
+									}
+									catch (Exception e)
+									{
+										lastException = e;
+										showErrorModal = true;
+									}
+								}
+							}
+						}
+
+
+
+						else
+						{
+							Console.Write("Error: Failed to load PPF file: " + pfPath + "\n");
+						}
+					}
+				}
+				else
+				{
+					Console.Write("ERROR: " + isoPath + "\\" + stagePath + " does not exist! \n");
+				}
+			}
+		}
 
 
 		protected override void Draw(GameTime gameTime)
@@ -381,7 +497,7 @@ public void ExtractisotofolderPLY(string pfPath)
 			if (ImGui.Button("Extract all to PLY"))
 			{
 
-				ExtractisotofolderPLY(isoPath);
+				ExtractIsoToFolderPLY(isoPath);
 			}
 
 
